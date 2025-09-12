@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PicTagger - AI图片标签生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .platform-btn, .mode-btn, .language-btn, .model-btn {
+            padding: 10px 20px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .platform-btn:hover, .mode-btn:hover, .language-btn:hover, .model-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .platform-btn.active, .mode-btn.active, .language-btn.active, .model-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .model-btn.installed {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .model-btn.installed.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .model-btn.downloading {
+            border-color: #ffc107;
+            background: #fffbf0;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8f0ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .abort-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-left: 15px;
+            transition: all 0.2s ease;
+        }
+
+        .abort-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .abort-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .processing-controls {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .processing-controls.active {
+            display: block;
+        }
+
+        .results {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .image-preview {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .analysis-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .batch-results {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .batch-results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .export-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .batch-result-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #28a745;
+        }
+
+        .batch-result-item.error {
+            border-left-color: #dc3545;
+        }
+
+        .batch-result-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .batch-result-preview {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .batch-result-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .batch-result-status {
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .batch-result-status.success {
+            color: #28a745;
+        }
+
+        .batch-result-status.error {
+            color: #dc3545;
+        }
+
+        .batch-result-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn-group {
+                justify-content: center;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏷️ PicTagger</h1>
+            <p>AI驱动的智能图片标签生成器</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 控制面板 -->
+            <div class="controls">
+                <!-- 平台选择器 -->
+                <div class="control-group">
+                    <label>📋 选择平台</label>
+                    <div class="btn-group" id="platformButtons">
+                        <button class="platform-btn active" data-platform="general">通用</button>
+                        <button class="platform-btn" data-platform="tuchong">图虫网</button>
+                        <button class="platform-btn" data-platform="shutterstock">Shutterstock</button>
+                        <button class="platform-btn" data-platform="getty">Getty Images</button>
+                        <button class="platform-btn" data-platform="adobe">Adobe Stock</button>
+                        <button class="platform-btn" data-platform="unsplash">Unsplash</button>
+                        <button class="platform-btn" data-platform="pexels">Pexels</button>
+                    </div>
+                </div>
+
+                <!-- 语言选择器 -->
+                <div class="control-group">
+                    <label>🌐 输出语言</label>
+                    <div class="btn-group">
+                        <button class="language-btn active" data-language="zh">🇨🇳 中文</button>
+                        <button class="language-btn" data-language="en">🇺🇸 English</button>
+                    </div>
+                </div>
+
+                <!-- 模型选择器 -->
+                <div class="control-group">
+                    <label>🤖 AI模型</label>
+                    <div class="btn-group" id="modelButtons">
+                        <!-- 模型按钮将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+
+                <!-- 模式选择器 -->
+                <div class="control-group">
+                    <label>📁 处理模式</label>
+                    <div class="btn-group">
+                        <button class="mode-btn active" data-mode="single">单张处理</button>
+                        <button class="mode-btn" data-mode="batch">批量处理</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 上传区域 -->
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📸</div>
+                <div class="upload-text" id="uploadText">拖拽图片到这里，或点击选择文件</div>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">选择图片</button>
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+            </div>
+
+            <!-- 进度条 -->
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <!-- 状态显示 -->
+            <div class="status" id="status"></div>
+            
+            <!-- 处理控制按钮 -->
+            <div class="processing-controls" id="processingControls">
+                <button class="abort-btn" id="abortBtn" onclick="abortProcessing()">
+                    🛑 中断处理
+                </button>
+            </div>
+
+            <!-- 单张结果显示 -->
+            <div class="results" id="results">
+                <h3>📊 分析结果</h3>
+                <img id="previewImage" class="image-preview" style="display: none;">
+                <div class="analysis-content" id="analysisContent"></div>
+            </div>
+
+            <!-- 批量结果显示 -->
+            <div class="batch-results" id="batchResults">
+                <div class="batch-results-header">
+                    <h3 id="batchResultsTitle">📊 批量处理结果</h3>
+                    <div class="export-controls" id="exportControls" style="display: none;">
+                        <button class="export-btn" id="exportExcelBtn" onclick="exportToExcel()">
+                            📊 导出图虫Excel
+                        </button>
+                    </div>
+                </div>
+                <div id="batchResultsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentPlatform = 'general';
+        let currentMode = 'single';
+        let currentLanguage = 'zh';
+        let currentModel = 'llava:7b';
+        let availableModels = {};
+        let isProcessing = false;
+        let abortController = null;
+        let batchAbortController = null;
+        let currentBatchIndex = 0;
+        let shouldStopBatch = false;
+        let batchResults = [];
+
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        const batchResultsElement = document.getElementById('batchResults');
+        const previewImage = document.getElementById('previewImage');
+        const analysisContent = document.getElementById('analysisContent');
+        const uploadText = document.getElementById('uploadText');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadAvailableModels();
+            updateUploadText();
+        });
+
+        function setupEventListeners() {
+            // 平台选择
+            document.querySelectorAll('.platform-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentPlatform = btn.dataset.platform;
+                });
+            });
+
+            // 模式选择
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    updateFileInput();
+                    updateUploadText();
+                });
+            });
+
+            // 语言选择
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.language-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentLanguage = btn.dataset.language;
+                    updateUploadText();
+                });
+            });
+
+            // 文件选择
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // 拖拽功能
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files);
+                handleFiles(files);
+            });
+        }
+
+        // 加载可用模型
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                availableModels = data.models;
+                updateModelButtons();
+            } catch (error) {
+                console.error('Failed to load models:', error);
+            }
+        }
+
+        // 更新模型按钮
+        function updateModelButtons() {
+            const container = document.getElementById('modelButtons');
+            container.innerHTML = '';
+
+            Object.entries(availableModels).forEach(([key, model]) => {
+                const btn = document.createElement('button');
+                btn.className = 'model-btn';
+                btn.dataset.model = key;
+                btn.textContent = model.name;
+
+                if (model.installed) {
+                    btn.classList.add('installed');
+                    if (key === currentModel) {
+                        btn.classList.add('active');
+                    }
+                }
+
+                btn.addEventListener('click', () => selectModel(key, btn));
+                container.appendChild(btn);
+            });
+        }
+
+        // 选择模型
+        async function selectModel(modelKey, btnElement) {
+            const model = availableModels[modelKey];
+            
+            if (model.installed) {
+                // 模型已安装，直接选择
+                document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+                btnElement.classList.add('active');
+                currentModel = modelKey;
+            } else {
+                // 模型未安装，开始下载
+                if (confirm(`模型 ${model.name} 未安装，是否现在下载？\n大小：${model.size}`)) {
+                    await downloadModel(modelKey, btnElement);
+                }
+            }
+        }
+
+        // 下载模型
+        async function downloadModel(modelKey, btnElement) {
+            const model = availableModels[modelKey];
+            
+            btnElement.classList.add('downloading');
+            btnElement.textContent = `下载中... ${model.name}`;
+            btnElement.disabled = true;
+
+            try {
+                const response = await fetch('/download_model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ model: modelKey })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btnElement.classList.remove('downloading');
+                    btnElement.classList.add('installed');
+                    btnElement.textContent = model.name;
+                    btnElement.disabled = false;
+                    
+                    // 更新模型状态
+                    availableModels[modelKey].installed = true;
+                    
+                    // 自动选择刚下载的模型
+                    document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+                    btnElement.classList.add('active');
+                    currentModel = modelKey;
+                    
+                    showStatus(`模型 ${model.name} 下载完成！`, 'success');
+                } else {
+                    throw new Error(data.error || '下载失败');
+                }
+            } catch (error) {
+                btnElement.classList.remove('downloading');
+                btnElement.textContent = model.name;
+                btnElement.disabled = false;
+                showStatus(`模型下载失败: ${error.message}`, 'error');
+            }
+        }
+
+        function updateFileInput() {
+            fileInput.multiple = currentMode === 'batch';
+        }
+
+        function updateUploadText() {
+            const texts = {
+                'zh': {
+                    'single': '拖拽图片到这里，或点击选择文件',
+                    'batch': '拖拽多张图片到这里，或点击选择文件（最多50张）'
+                },
+                'en': {
+                    'single': 'Drag image here, or click to select file',
+                    'batch': 'Drag multiple images here, or click to select files (up to 50)'
+                }
+            };
+            uploadText.textContent = texts[currentLanguage][currentMode];
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            if (currentMode === 'single') {
+                handleSingleFile(files[0]);
+            } else {
+                handleBatchFiles(files);
+            }
+        }
+
+        // 处理单张文件上传
+        async function handleSingleFile(file) {
+            if (!validateFile(file)) return;
+            if (isProcessing) return;
+
+            isProcessing = true;
+            abortController = new AbortController();
+            
+            // 显示中断按钮
+            showProcessingControls(true);
+
+            // 显示预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // 显示加载状态
+            const loadingText = currentLanguage === 'zh' ? 
+                '正在分析图片，请稍候... <span class="loading-spinner"></span>' :
+                'Analyzing image, please wait... <span class="loading-spinner"></span>';
+            showStatus(loadingText, 'loading');
+            results.style.display = 'block';
+            batchResultsElement.style.display = 'none';
+            analysisContent.textContent = currentLanguage === 'zh' ? '分析中...' : 'Analyzing...';
+
+            // 上传文件
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('platform', currentPlatform);
+            formData.append('language', currentLanguage);
+            formData.append('model', currentModel);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                    signal: abortController.signal
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const langText = currentLanguage === 'zh' ? '分析完成！平台：' : 'Analysis completed! Platform: ';
+                    showStatus(`${langText}${getPlatformName(currentPlatform)}`, 'success');
+                    
+                    // 确保analysis是字符串
+                    let analysisText = data.analysis;
+                    if (typeof analysisText === 'object') {
+                        analysisText = JSON.stringify(analysisText, null, 2);
+                    }
+                    analysisContent.textContent = analysisText;
+                } else {
+                    showStatus(data.error || '上传失败', 'error');
+                    results.style.display = 'none';
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    const abortText = currentLanguage === 'zh' ? '处理已中断' : 'Processing aborted';
+                    showStatus(abortText, 'error');
+                    results.style.display = 'none';
+                } else {
+                    const errorText = currentLanguage === 'zh' ? '网络错误，请重试' : 'Network error, please try again';
+                    showStatus(errorText, 'error');
+                    results.style.display = 'none';
+                }
+            } finally {
+                isProcessing = false;
+                showProcessingControls(false);
+                abortController = null;
+            }
+        }
+
+        // 处理批量文件上传
+        async function handleBatchFiles(files) {
+            const validFiles = files.filter(validateFile);
+            
+            if (validFiles.length === 0) {
+                const errorText = currentLanguage === 'zh' ? '没有有效的图片文件' : 'No valid image files';
+                showStatus(errorText, 'error');
+                return;
+            }
+
+            if (isProcessing) return;
+
+            // 检查批量处理数量限制
+            if (validFiles.length > 50) {
+                const errorText = currentLanguage === 'zh' ? 
+                    '批量处理最多支持50张图片，请减少选择的图片数量' : 
+                    'Batch processing supports up to 50 images, please reduce the number of selected images';
+                showStatus(errorText, 'error');
+                return;
+            }
+
+            isProcessing = true;
+            shouldStopBatch = false;
+            currentBatchIndex = 0;
+            
+            // 显示中断按钮
+            showProcessingControls(true);
+
+            // 显示进度条
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            
+            const startText = currentLanguage === 'zh' ? 
+                `开始批量处理 ${validFiles.length} 张图片...` : 
+                `Starting batch processing of ${validFiles.length} images...`;
+            showStatus(startText, 'loading');
+            results.style.display = 'none';
+            batchResultsElement.style.display = 'block';
+            
+            const container = document.getElementById('batchResultsContainer');
+            container.innerHTML = '';
+
+            // 清空之前的批量结果
+            batchResults.length = 0;
+
+            // 更新批量结果标题
+            const batchTitle = document.getElementById('batchResultsTitle');
+            batchTitle.textContent = currentLanguage === 'zh' ? '📊 批量处理结果' : '📊 Batch Processing Results';
+
+            // 隐藏导出按钮
+            document.getElementById('exportControls').style.display = 'none';
+
+            let processedCount = 0;
+            let successCount = 0;
+
+            // 逐个处理文件
+            for (let i = 0; i < validFiles.length; i++) {
+                if (shouldStopBatch) {
+                    const abortText = currentLanguage === 'zh' ? 
+                        `批量处理已中断！已处理 ${processedCount}/${validFiles.length} 张图片` :
+                        `Batch processing aborted! Processed ${processedCount}/${validFiles.length} images`;
+                    showStatus(abortText, 'error');
+                    break;
+                }
+
+                currentBatchIndex = i;
+                const file = validFiles[i];
+                
+                try {
+                    // 更新进度
+                    const progress = ((i + 1) / validFiles.length) * 100;
+                    progressFill.style.width = `${progress}%`;
+                    
+                    const processingText = currentLanguage === 'zh' ? 
+                        `正在处理第 ${i + 1}/${validFiles.length} 张图片...` :
+                        `Processing image ${i + 1}/${validFiles.length}...`;
+                    showStatus(processingText, 'loading');
+
+                    // 创建单个文件的FormData
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('platform', currentPlatform);
+                    formData.append('language', currentLanguage);
+                    formData.append('model', currentModel);
+                    formData.append('file_index', (i + 1).toString());
+                    formData.append('total_files', validFiles.length.toString());
+
+                    batchAbortController = new AbortController();
+                    const response = await fetch('/batch_upload', {
+                        method: 'POST',
+                        body: formData,
+                        signal: batchAbortController.signal
+                    });
+
+                    const data = await response.json();
+                    processedCount++;
+
+                    if (data.success) {
+                        successCount++;
+                        
+                        // 确保analysis是字符串
+                        let analysisText = data.analysis;
+                        if (typeof analysisText === 'object') {
+                            analysisText = JSON.stringify(analysisText, null, 2);
+                        }
+                        
+                        // 保存到批量结果数组
+                        batchResults.push({
+                            filename: data.filename,
+                            analysis: data.analysis, // 保存原始对象用于导出
+                            success: true
+                        });
+                        
+                        const resultElement = createBatchResultElement({
+                            filename: data.filename,
+                            analysis: analysisText,
+                            success: true
+                        }, file);
+                        container.appendChild(resultElement);
+                    } else {
+                        // 保存失败结果
+                        batchResults.push({
+                            filename: data.filename,
+                            error: data.error,
+                            success: false
+                        });
+                        
+                        const resultElement = createBatchResultElement({
+                            filename: data.filename,
+                            error: data.error,
+                            success: false
+                        }, file);
+                        container.appendChild(resultElement);
+                    }
+
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        break; // 中断处理
+                    }
+                    processedCount++;
+                    
+                    // 保存错误结果
+                    batchResults.push({
+                        filename: file.name,
+                        error: currentLanguage === 'zh' ? '网络错误' : 'Network error',
+                        success: false
+                    });
+                    
+                    const resultElement = createBatchResultElement({
+                        filename: file.name,
+                        error: currentLanguage === 'zh' ? '网络错误' : 'Network error',
+                        success: false
+                    }, file);
+                    container.appendChild(resultElement);
+                }
+            }
+
+            // 完成处理
+            if (!shouldStopBatch) {
+                progressFill.style.width = '100%';
+                const successText = currentLanguage === 'zh' ? 
+                    `批量处理完成！成功处理 ${successCount}/${validFiles.length} 张图片` :
+                    `Batch processing completed! Successfully processed ${successCount}/${validFiles.length} images`;
+                showStatus(successText, 'success');
+                
+                // 显示导出按钮（仅当有成功结果且平台为图虫时）
+                const hasSuccessResults = batchResults.some(result => result.success);
+                if (hasSuccessResults && currentPlatform === 'tuchong') {
+                    document.getElementById('exportControls').style.display = 'flex';
+                }
+            }
+
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+            }, 2000);
+
+            isProcessing = false;
+            showProcessingControls(false);
+            batchAbortController = null;
+        }
+
+        function validateFile(file) {
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            const maxSize = 50 * 1024 * 1024; // 50MB
+
+            if (!validTypes.includes(file.type)) {
+                const errorText = currentLanguage === 'zh' ? 
+                    `文件 ${file.name} 不是有效的图片格式` : 
+                    `File ${file.name} is not a valid image format`;
+                showStatus(errorText, 'error');
+                return false;
+            }
+
+            if (file.size > maxSize) {
+                const errorText = currentLanguage === 'zh' ? 
+                    `文件 ${file.name} 太大，请选择小于50MB的图片` : 
+                    `File ${file.name} is too large, please select images smaller than 50MB`;
+                showStatus(errorText, 'error');
+                return false;
+            }
+
+            return true;
+        }
+
+        function createBatchResultElement(data, file) {
+            const div = document.createElement('div');
+            div.className = `batch-result-item ${data.success ? '' : 'error'}`;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = div.querySelector('.batch-result-preview');
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            const statusText = data.success ? 
+                (currentLanguage === 'zh' ? '✅ 成功' : '✅ Success') : 
+                (currentLanguage === 'zh' ? '❌ 失败' : '❌ Failed');
+
+            div.innerHTML = `
+                <div class="batch-result-header">
+                    <img class="batch-result-preview" alt="预览">
+                    <div class="batch-result-info">
+                        <h4>${data.filename}</h4>
+                        <div class="batch-result-status ${data.success ? 'success' : 'error'}">${statusText}</div>
+                    </div>
+                </div>
+                <div class="batch-result-content">${data.success ? data.analysis : data.error}</div>
+            `;
+
+            return div;
+        }
+
+        function showStatus(message, type) {
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function getPlatformName(platform) {
+            const names = {
+                'zh': {
+                    'general': '通用',
+                    'tuchong': '图虫网',
+                    'shutterstock': 'Shutterstock',
+                    'getty': 'Getty Images',
+                    'adobe': 'Adobe Stock',
+                    'unsplash': 'Unsplash',
+                    'pexels': 'Pexels'
+                },
+                'en': {
+                    'general': 'General',
+                    'tuchong': 'Tuchong',
+                    'shutterstock': 'Shutterstock',
+                    'getty': 'Getty Images',
+                    'adobe': 'Adobe Stock',
+                    'unsplash': 'Unsplash',
+                    'pexels': 'Pexels'
+                }
+            };
+            return names[currentLanguage][platform] || platform;
+        }
+
+        // 显示/隐藏处理控制按钮
+        function showProcessingControls(show) {
+            const controls = document.getElementById('processingControls');
+            if (show) {
+                controls.classList.add('active');
+            } else {
+                controls.classList.remove('active');
+            }
+        }
+
+        // 中断处理
+        function abortProcessing() {
+            if (currentMode === 'single' && abortController) {
+                abortController.abort();
+                const abortText = currentLanguage === 'zh' ? '正在中断处理...' : 'Aborting processing...';
+                showStatus(abortText, 'error');
+            } else if (currentMode === 'batch') {
+                shouldStopBatch = true;
+                if (batchAbortController) {
+                    batchAbortController.abort();
+                }
+                const abortText = currentLanguage === 'zh' ? '正在中断批量处理...' : 'Aborting batch processing...';
+                showStatus(abortText, 'error');
+            }
+        }
+
+        // 导出到Excel
+        async function exportToExcel() {
+            if (batchResults.length === 0) {
+                const errorText = currentLanguage === 'zh' ? '没有可导出的数据' : 'No data to export';
+                showStatus(errorText, 'error');
+                return;
+            }
+
+            // 只导出成功的结果
+            const successResults = batchResults.filter(result => result.success);
+            
+            if (successResults.length === 0) {
+                const errorText = currentLanguage === 'zh' ? '没有成功处理的图片可导出' : 'No successfully processed images to export';
+                showStatus(errorText, 'error');
+                return;
+            }
+
+            const exportBtn = document.getElementById('exportExcelBtn');
+            exportBtn.disabled = true;
+            exportBtn.textContent = currentLanguage === 'zh' ? '📊 导出中...' : '📊 Exporting...';
+
+            try {
+                const response = await fetch('/export_excel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        results: successResults
+                    })
+                });
+
+                if (response.ok) {
+                    // 获取文件名
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = '图虫平台批量导入.xlsx';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+
+                    // 下载文件
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    const successText = currentLanguage === 'zh' ? 
+                        `Excel文件导出成功！已导出 ${successResults.length} 张图片的信息` :
+                        `Excel file exported successfully! Exported information for ${successResults.length} images`;
+                    showStatus(successText, 'success');
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Export failed');
+                }
+            } catch (error) {
+                const errorText = currentLanguage === 'zh' ? 
+                    `导出失败: ${error.message}` : 
+                    `Export failed: ${error.message}`;
+                showStatus(errorText, 'error');
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.textContent = currentLanguage === 'zh' ? '📊 导出图虫Excel' : '📊 Export Tuchong Excel';
+            }
+        }
+    </script>
+</body>
+</html>
