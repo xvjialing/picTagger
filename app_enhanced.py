@@ -71,7 +71,7 @@ def upload_file():
         file.save(filepath)
         
         # 使用指定模型分析图片
-        analysis_data = analyzer.analyze_image(filepath, platform, model)
+        analysis_data = analyzer.analyze_image(filepath, platform, model, language)
         formatted_result = analyzer.format_for_platform(analysis_data, platform, language)
         
         return jsonify({
@@ -109,7 +109,7 @@ def batch_upload():
             file.save(filepath)
             
             # 使用指定模型分析图片
-            analysis_data = analyzer.analyze_image(filepath, platform, model)
+            analysis_data = analyzer.analyze_image(filepath, platform, model, language)
             formatted_result = analyzer.format_for_platform(analysis_data, platform, language)
             
             return jsonify({
@@ -335,22 +335,18 @@ def export_excel():
             
             keywords_str = ','.join(keywords)
             
-            # 根据内容智能判断分类
-            category = '其他'
-            if any(word in description.lower() for word in ['人物', '人像', '肖像']):
-                category = '人物'
-            elif any(word in description.lower() for word in ['风景', '自然', '山', '海', '天空']):
-                category = '自然风光'
-            elif any(word in description.lower() for word in ['建筑', '房子', '大楼', '城市']):
-                category = '建筑'
-            elif any(word in description.lower() for word in ['动物', '宠物', '猫', '狗']):
-                category = '动物'
-            elif any(word in description.lower() for word in ['食物', '美食', '餐厅']):
-                category = '食物'
-            elif any(word in description.lower() for word in ['科技', '电脑', '手机', '数码']):
-                category = '科技'
-            elif any(word in description.lower() for word in ['商务', '办公', '会议']):
-                category = '商务'
+            # 直接使用AI识别的图片类型作为分类
+            category = analysis.get('image_type', '其他')
+            
+            # 确保分类在图虫网允许的分类列表中
+            tuchong_categories = [
+                '城市风光', '自然风光', '野生动物', '静物美食', 
+                '动物萌宠', '商务肖像', '生活方式', '室内空间', 
+                '生物医疗', '运动健康', '节日假日', '其他'
+            ]
+            
+            if category not in tuchong_categories:
+                category = '其他'
             
             excel_row = {
                 '图片文件名': filename,

@@ -36,9 +36,38 @@ class ImageAnalyzer:
             
             return buffer.getvalue(), original_size, img.size
     
-    def generate_platform_prompt(self, platform='general'):
-        """根据不同平台生成优化的提示词"""
-        base_prompt = """请详细分析这张图片，并按以下JSON格式输出：
+    def generate_platform_prompt(self, platform='general', language='zh'):
+        """根据不同平台和语言生成优化的提示词"""
+        
+        if language == 'zh':
+            # 根据平台调整分类选项
+            if platform == 'tuchong' and platform in PLATFORM_TEMPLATES:
+                categories = PLATFORM_TEMPLATES[platform].get('categories', [])
+                category_options = '、'.join(categories)
+                base_prompt = f"""请详细分析这张图片，并按以下JSON格式输出（请用中文回答）：
+
+{{
+    "image_type": "图片类型，必须从以下选项中选择一个：{category_options}",
+    "main_subject": "主要内容的简洁描述",
+    "detailed_description": "详细描述图片的构图、色彩、光线、氛围等",
+    "keywords_cn": ["中文关键词1", "中文关键词2", "..."],
+    "keywords_en": ["English keyword1", "English keyword2", "..."],
+    "mood": "情感色调（积极/中性/消极/神秘/温暖/冷静等）",
+    "color_palette": ["主要颜色1", "主要颜色2", "..."],
+    "composition": "构图描述（三分法/对称/引导线等）",
+    "lighting": "光线描述（自然光/人工光/逆光/侧光等）",
+    "commercial_use": "商业用途建议",
+    "target_audience": "目标受众",
+    "seasonal": "季节性（如适用）",
+    "location_type": "场景类型（室内/室外/工作室等）"
+}}
+
+重要：
+1. 请确保所有描述性文字都使用中文，关键词部分提供中英文两个版本
+2. image_type字段必须严格从给定的分类选项中选择，不能使用其他分类
+3. 请根据图片内容仔细选择最合适的分类"""
+            else:
+                base_prompt = """请详细分析这张图片，并按以下JSON格式输出（请用中文回答）：
 
 {
     "image_type": "图片类型（风景/人物/动物/建筑/食物/产品/抽象/其他）",
@@ -54,12 +83,65 @@ class ImageAnalyzer:
     "target_audience": "目标受众",
     "seasonal": "季节性（如适用）",
     "location_type": "场景类型（室内/室外/工作室等）"
-}"""
+}
+
+重要：请确保所有描述性文字都使用中文，关键词部分提供中英文两个版本。"""
+        else:
+            # 根据平台调整分类选项
+            if platform == 'tuchong' and platform in PLATFORM_TEMPLATES:
+                categories = PLATFORM_TEMPLATES[platform].get('categories', [])
+                category_options = ', '.join(categories)
+                base_prompt = f"""Please analyze this image in detail and output in the following JSON format (please answer in English):
+
+{{
+    "image_type": "Image type, must choose one from: {category_options}",
+    "main_subject": "Brief description of main content",
+    "detailed_description": "Detailed description of composition, colors, lighting, atmosphere, etc.",
+    "keywords_cn": ["Chinese keyword1", "Chinese keyword2", "..."],
+    "keywords_en": ["English keyword1", "English keyword2", "..."],
+    "mood": "Emotional tone (positive/neutral/negative/mysterious/warm/calm, etc.)",
+    "color_palette": ["Main color1", "Main color2", "..."],
+    "composition": "Composition description (rule of thirds/symmetry/leading lines, etc.)",
+    "lighting": "Lighting description (natural light/artificial light/backlight/side light, etc.)",
+    "commercial_use": "Commercial use suggestions",
+    "target_audience": "Target audience",
+    "seasonal": "Seasonality (if applicable)",
+    "location_type": "Scene type (indoor/outdoor/studio, etc.)"
+}}
+
+Important: 
+1. Please ensure all descriptive text is in English, and provide both Chinese and English versions for keywords
+2. The image_type field must strictly choose from the given category options, no other categories allowed
+3. Please carefully select the most appropriate category based on the image content"""
+            else:
+                base_prompt = """Please analyze this image in detail and output in the following JSON format (please answer in English):
+
+{
+    "image_type": "Image type (landscape/portrait/animal/architecture/food/product/abstract/other)",
+    "main_subject": "Brief description of main content",
+    "detailed_description": "Detailed description of composition, colors, lighting, atmosphere, etc.",
+    "keywords_cn": ["Chinese keyword1", "Chinese keyword2", "..."],
+    "keywords_en": ["English keyword1", "English keyword2", "..."],
+    "mood": "Emotional tone (positive/neutral/negative/mysterious/warm/calm, etc.)",
+    "color_palette": ["Main color1", "Main color2", "..."],
+    "composition": "Composition description (rule of thirds/symmetry/leading lines, etc.)",
+    "lighting": "Lighting description (natural light/artificial light/backlight/side light, etc.)",
+    "commercial_use": "Commercial use suggestions",
+    "target_audience": "Target audience",
+    "seasonal": "Seasonality (if applicable)",
+    "location_type": "Scene type (indoor/outdoor/studio, etc.)"
+}
+
+Important: Please ensure all descriptive text is in English, and provide both Chinese and English versions for keywords."""
 
         if platform in PLATFORM_TEMPLATES:
             template = PLATFORM_TEMPLATES[platform]
-            platform_prompt = f"{base_prompt}\n\n特别要求：{template['prompt_suffix']}"
-            platform_prompt += f"\n关键词数量限制：{template['max_keywords']}个"
+            if language == 'zh':
+                platform_prompt = f"{base_prompt}\n\n特别要求：{template['prompt_suffix']}"
+                platform_prompt += f"\n关键词数量限制：{template['max_keywords']}个"
+            else:
+                platform_prompt = f"{base_prompt}\n\nSpecial requirements: {template['prompt_suffix']}"
+                platform_prompt += f"\nKeyword limit: {template['max_keywords']} keywords"
             return platform_prompt
         
         return base_prompt
@@ -95,7 +177,7 @@ class ImageAnalyzer:
             print(f"检查/下载模型时出错: {str(e)}")
             return False
 
-    def analyze_image(self, image_path, platform='general', model=None):
+    def analyze_image(self, image_path, platform='general', model=None, language='zh'):
         """使用指定模型分析图片"""
         # 如果没有指定模型，使用默认模型
         if model is None:
@@ -117,8 +199,8 @@ class ImageAnalyzer:
             # 转换为base64
             image_b64 = base64.b64encode(compressed_image).decode('utf-8')
             
-            # 生成平台特定的提示词
-            prompt = self.generate_platform_prompt(platform)
+            # 生成平台和语言特定的提示词
+            prompt = self.generate_platform_prompt(platform, language)
             
             # 调用Ollama API
             response = ollama.chat(

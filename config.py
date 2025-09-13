@@ -6,7 +6,7 @@ load_dotenv()
 class Config:
     # Ollama配置
     OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-    OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llava:7b')
+    OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'qwen2.5vl:7b')
     
     # Flask配置
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
@@ -27,6 +27,11 @@ class Config:
 
 # 支持的模型列表
 SUPPORTED_MODELS = {
+    'qwen2.5vl:7b': {
+        'name': 'Qwen2.5-VL 7B',
+        'description': '阿里通义千问视觉语言模型，中文效果优秀',
+        'size': '约4.7GB'
+    },
     'llava:latest': {
         'name': 'LLaVA Latest',
         'description': '最新版本的LLaVA视觉语言模型',
@@ -71,7 +76,12 @@ PLATFORM_TEMPLATES = {
         'max_keywords': 30,
         'language': 'zh',
         'style': 'artistic',
-        'prompt_suffix': '生成适合图虫网的中文艺术摄影关键词。'
+        'prompt_suffix': '生成适合图虫网的中文艺术摄影关键词。',
+        'categories': [
+            '城市风光', '自然风光', '野生动物', '静物美食', 
+            '动物萌宠', '商务肖像', '生活方式', '室内空间', 
+            '生物医疗', '运动健康', '节日假日', '其他'
+        ]
     },
     'getty': {
         'max_keywords': 40,
