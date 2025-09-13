@@ -47,25 +47,17 @@ class ImageAnalyzer:
                 base_prompt = f"""请详细分析这张图片，并按以下JSON格式输出（请用中文回答）：
 
 {{
-    "image_type": "图片类型，必须从以下选项中选择一个：{category_options}",
-    "main_subject": "主要内容的简洁描述",
-    "detailed_description": "详细描述图片的构图、色彩、光线、氛围等",
-    "keywords_cn": ["中文关键词1", "中文关键词2", "..."],
-    "keywords_en": ["English keyword1", "English keyword2", "..."],
-    "mood": "情感色调（积极/中性/消极/神秘/温暖/冷静等）",
-    "color_palette": ["主要颜色1", "主要颜色2", "..."],
-    "composition": "构图描述（三分法/对称/引导线等）",
-    "lighting": "光线描述（自然光/人工光/逆光/侧光等）",
-    "commercial_use": "商业用途建议",
-    "target_audience": "目标受众",
-    "seasonal": "季节性（如适用）",
-    "location_type": "场景类型（室内/室外/工作室等）"
+    "image_type": "图片分类，必须从以下选项中选择一个：{category_options}。如果识别不出具体分类，请选择'其他'",
+    "description": "图片说明，简洁明了地描述图片的主要内容和特点",
+    "keywords": ["关键词1", "关键词2", "关键词3", "关键词4", "关键词5", "关键词6", "关键词7", "..."]
 }}
 
-重要：
-1. 请确保所有描述性文字都使用中文，关键词部分提供中英文两个版本
-2. image_type字段必须严格从给定的分类选项中选择，不能使用其他分类
-3. 请根据图片内容仔细选择最合适的分类"""
+重要要求：
+1. image_type字段必须严格从给定的12个分类选项中选择，不能使用其他分类
+2. 如果无法确定具体分类，请选择"其他"
+3. keywords字段必须包含至少5个以上的关键词，用于描述图片内容、风格、色彩、情感等
+4. 所有内容都用中文输出
+5. 请根据图片内容仔细选择最合适的分类"""
             else:
                 base_prompt = """请详细分析这张图片，并按以下JSON格式输出（请用中文回答）：
 
@@ -91,28 +83,20 @@ class ImageAnalyzer:
             if platform == 'tuchong' and platform in PLATFORM_TEMPLATES:
                 categories = PLATFORM_TEMPLATES[platform].get('categories', [])
                 category_options = ', '.join(categories)
-                base_prompt = f"""Please analyze this image in detail and output in the following JSON format (please answer in English):
+                base_prompt = f"""Please analyze this image in detail and output in the following JSON format:
 
 {{
-    "image_type": "Image type, must choose one from: {category_options}",
-    "main_subject": "Brief description of main content",
-    "detailed_description": "Detailed description of composition, colors, lighting, atmosphere, etc.",
-    "keywords_cn": ["Chinese keyword1", "Chinese keyword2", "..."],
-    "keywords_en": ["English keyword1", "English keyword2", "..."],
-    "mood": "Emotional tone (positive/neutral/negative/mysterious/warm/calm, etc.)",
-    "color_palette": ["Main color1", "Main color2", "..."],
-    "composition": "Composition description (rule of thirds/symmetry/leading lines, etc.)",
-    "lighting": "Lighting description (natural light/artificial light/backlight/side light, etc.)",
-    "commercial_use": "Commercial use suggestions",
-    "target_audience": "Target audience",
-    "seasonal": "Seasonality (if applicable)",
-    "location_type": "Scene type (indoor/outdoor/studio, etc.)"
+    "image_type": "Image category, must choose one from: {category_options}. If cannot identify specific category, choose 'Other'",
+    "description": "Image description, concisely describe the main content and characteristics of the image",
+    "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7", "..."]
 }}
 
-Important: 
-1. Please ensure all descriptive text is in English, and provide both Chinese and English versions for keywords
-2. The image_type field must strictly choose from the given category options, no other categories allowed
-3. Please carefully select the most appropriate category based on the image content"""
+Important requirements:
+1. The image_type field must strictly choose from the given 12 category options, no other categories allowed
+2. If unable to determine specific category, choose "Other"
+3. The keywords field must contain at least 5 or more keywords describing image content, style, colors, emotions, etc.
+4. All content should be in Chinese
+5. Please carefully select the most appropriate category based on the image content"""
             else:
                 base_prompt = """Please analyze this image in detail and output in the following JSON format (please answer in English):
 
@@ -320,35 +304,70 @@ Important: Please ensure all descriptive text is in English, and provide both Ch
         return '\n'.join(result)
     
     def _format_tuchong(self, data, template, language='zh'):
-        """图虫网格式化"""
+        """图虫网格式化 - 只保留图片分类、图片说明、图片关键字"""
         result = []
         if language == 'zh':
-            result.append("🌸 图虫网供稿格式")
-            result.append("=" * 30)
-            result.append(f"标题建议：{data.get('main_subject', '精美摄影作品')}")
-            result.append(f"描述：{data.get('detailed_description', '')}")
+            # 图片分类
+            image_type = data.get('image_type', '其他')
+            result.append(f"图片分类：{image_type}")
             
-            # 合并中英文关键词，优先中文
-            keywords = data.get('keywords_cn', []) + data.get('keywords_en', [])
+            # 图片说明
+            description = data.get('description', data.get('detailed_description', data.get('main_subject', '')))
+            if description:
+                result.append(f"图片说明：{description}")
+            
+            # 图片关键字 - 至少5个以上
+            keywords = data.get('keywords', data.get('keywords_cn', []))
+            if not keywords:
+                # 如果没有keywords字段，尝试从其他字段获取
+                keywords = data.get('keywords_en', [])
+            
             if keywords:
+                # 确保至少有5个关键词
+                if len(keywords) < 5:
+                    # 如果关键词不足5个，可以从其他字段补充
+                    additional_keywords = []
+                    if data.get('mood'):
+                        additional_keywords.append(data['mood'])
+                    if data.get('color_palette'):
+                        additional_keywords.extend(data['color_palette'][:2])  # 最多取2个颜色
+                    keywords.extend(additional_keywords)
+                
+                # 限制关键词数量不超过模板限制
                 keywords = keywords[:template['max_keywords']]
-                result.append(f"关键词：{' '.join(keywords)}")
-            
-            result.append(f"情感标签：{data.get('mood', '')}")
-            result.append(f"色彩风格：{', '.join(data.get('color_palette', []))}")
+                result.append(f"图片关键字：{', '.join(keywords)}")
+            else:
+                result.append("图片关键字：暂无")
+                
         else:
-            result.append("🌸 Tuchong Format")
-            result.append("=" * 30)
-            result.append(f"Title Suggestion: {data.get('main_subject', 'Beautiful Photography')}")
-            result.append(f"Description: {data.get('detailed_description', '')}")
+            # Image Category
+            image_type = data.get('image_type', 'Other')
+            result.append(f"Image Category: {image_type}")
             
-            keywords = data.get('keywords_en', []) + data.get('keywords_cn', [])
+            # Image Description
+            description = data.get('description', data.get('detailed_description', data.get('main_subject', '')))
+            if description:
+                result.append(f"Image Description: {description}")
+            
+            # Image Keywords - at least 5
+            keywords = data.get('keywords', data.get('keywords_en', []))
+            if not keywords:
+                keywords = data.get('keywords_cn', [])
+            
             if keywords:
+                # Ensure at least 5 keywords
+                if len(keywords) < 5:
+                    additional_keywords = []
+                    if data.get('mood'):
+                        additional_keywords.append(data['mood'])
+                    if data.get('color_palette'):
+                        additional_keywords.extend(data['color_palette'][:2])
+                    keywords.extend(additional_keywords)
+                
                 keywords = keywords[:template['max_keywords']]
-                result.append(f"Keywords: {' '.join(keywords)}")
-            
-            result.append(f"Mood Tags: {data.get('mood', '')}")
-            result.append(f"Color Style: {', '.join(data.get('color_palette', []))}")
+                result.append(f"Image Keywords: {', '.join(keywords)}")
+            else:
+                result.append("Image Keywords: None")
         
         return '\n'.join(result)
     

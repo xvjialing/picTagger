@@ -354,7 +354,7 @@ def export_excel():
                 '图片说明': description,
                 '图片关键字': keywords_str,
                 '图片分类': category,
-                '图片用途[选项]': '非商业广告类'  # 默认非商业
+                '图片用途[选项]': '商业广告类'  # 设置为商业广告类
             }
             
             excel_data.append(excel_row)
