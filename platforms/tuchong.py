@@ -6,6 +6,67 @@
 from .base_formatter import BasePlatformFormatter
 
 
+def optimize_description_length(description, min_length=5, max_length=50):
+    """优化描述长度，确保在指定范围内"""
+    cleaned = clean_description(description) if description else '精美图片'
+    length = len(cleaned)
+
+    if length >= min_length and length <= max_length:
+        return cleaned
+    elif length < min_length:
+        if '风景' in cleaned or '景色' in cleaned:
+            return '精美的' + cleaned
+        elif '人物' in cleaned:
+            return '专业的' + cleaned
+        else:
+            return '精美的' + cleaned
+    else:
+        # 智能截取，优先在标点符号处
+        punctuation = ['，', '。', '、', '；']
+        for i in range(max_length - 1, max_length // 2, -1):
+            if i < len(cleaned) and cleaned[i] in punctuation:
+                return cleaned[:i]
+        return cleaned[:max_length]
+
+def clean_description(description):
+
+    # 定义需要去除的前缀模式
+    redundant_prefixes = [
+        '图片展示了',
+        '图片显示了',
+        '图片描述了',
+        '这张图片',
+        '图片中',
+        '图片里',
+        '画面中',
+        '画面里',
+        '照片中',
+        '照片里',
+        '图像中',
+        '图像里',
+        '此图',
+        '本图',
+        '图中',
+        '图里'
+    ]
+
+    # 去除前缀
+    cleaned = description.strip()
+    for prefix in redundant_prefixes:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+            # 如果去除前缀后以"是"、"为"、"有"等开头，也去除
+            if cleaned.startswith('是'):
+                cleaned = cleaned[1:].strip()
+            elif cleaned.startswith('为'):
+                cleaned = cleaned[1:].strip()
+            elif cleaned.startswith('有'):
+                cleaned = cleaned[1:].strip()
+            break
+
+    return cleaned if cleaned else description
+
+
 class TuchongFormatter(BasePlatformFormatter):
     """图虫网格式化器 - 只保留图片分类、图片说明、图片关键字"""
 
@@ -31,7 +92,11 @@ class TuchongFormatter(BasePlatformFormatter):
                 analysis_data.get('main_subject', '')
             )
             if description:
-                result.append(f"图片说明：{description}")
+                # 优化描述长度，确保在5-50字符范围内
+                optimized_description = optimize_description_length(description)
+                result.append(f"图片说明：{optimized_description}")
+            else:
+                result.append("图片说明：精美图片素材")
 
             # 图片关键字 - 至少5个以上
             keywords = self.extract_keywords(analysis_data, max_keywords)
@@ -67,7 +132,11 @@ class TuchongFormatter(BasePlatformFormatter):
                 analysis_data.get('main_subject', '')
             )
             if description:
-                result.append(f"Image Description: {description}")
+                # 优化描述长度，确保在合适范围内
+                optimized_description = optimize_description_length(description)
+                result.append(f"Image Description: {optimized_description}")
+            else:
+                result.append("Image Description: Beautiful image")
 
             # Image Keywords - at least 5
             keywords = self.extract_keywords(analysis_data, max_keywords)

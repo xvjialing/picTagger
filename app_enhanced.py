@@ -289,108 +289,290 @@ def download_model():
             'error': f'下载失败: {str(e)}'
         }), 500
 
+def clean_description(description):
+    """清理描述中的冗余前缀"""
+    if not description:
+        return '精美图片'
+
+    # 定义需要去除的前缀模式
+    redundant_prefixes = [
+        '图片展示了',
+        '图片显示了',
+        '图片描述了',
+        '这张图片',
+        '图片中',
+        '图片里',
+        '画面中',
+        '画面里',
+        '照片中',
+        '照片里',
+        '图像中',
+        '图像里',
+        '此图',
+        '本图',
+        '图中',
+        '图里'
+    ]
+
+    # 去除前缀
+    cleaned = description.strip()
+    for prefix in redundant_prefixes:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+            # 如果去除前缀后以"是"、"为"、"有"等开头，也去除
+            if cleaned.startswith('是'):
+                cleaned = cleaned[1:].strip()
+            elif cleaned.startswith('为'):
+                cleaned = cleaned[1:].strip()
+            elif cleaned.startswith('有'):
+                cleaned = cleaned[1:].strip()
+            break
+
+    # 确保首字母大写（如果是中文则不变）
+    if cleaned and len(cleaned) > 0:
+        if cleaned[0].isalpha() and cleaned[0].islower():
+            cleaned = cleaned[0].upper() + cleaned[1:]
+
+    return cleaned if cleaned else '精美图片'
+
+def optimize_description_length(description, min_length=5, max_length=50):
+    """优化描述长度，确保在指定范围内"""
+    if not description:
+        return '精美图片素材'
+
+    # 先清理冗余前缀
+    cleaned = clean_description(description)
+
+    # 计算字符长度
+    length = len(cleaned)
+
+    if length >= min_length and length <= max_length:
+        # 长度合适，直接返回
+        return cleaned
+    elif length < min_length:
+        # 太短，需要扩展
+        return expand_description(cleaned, min_length)
+    else:
+        # 太长，需要智能缩短
+        return shorten_description(cleaned, max_length)
+
+def expand_description(description, min_length):
+    """扩展过短的描述"""
+    if len(description) >= min_length:
+        return description
+
+    # 添加通用的美化词汇来扩展描述
+    enhancement_words = [
+        '精美的', '优质的', '高清的', '专业的', '艺术的',
+        '美丽的', '壮观的', '清晰的', '生动的', '细腻的'
+    ]
+
+    # 根据内容选择合适的修饰词
+    if '风景' in description or '景色' in description or '山' in description or '海' in description:
+        preferred_words = ['壮观的', '美丽的', '优质的']
+    elif '人物' in description or '肖像' in description:
+        preferred_words = ['专业的', '精美的', '高清的']
+    elif '食物' in description or '美食' in description:
+        preferred_words = ['诱人的', '精美的', '美味的']
+    else:
+        preferred_words = ['精美的', '优质的', '专业的']
+
+    # 尝试添加修饰词
+    for word in preferred_words:
+        expanded = word + description
+        if len(expanded) >= min_length and len(expanded) <= 50:
+            return expanded
+
+    # 如果还是太短，添加"摄影作品"后缀
+    if len(description) + 4 <= 50:
+        return description + '摄影作品'
+    elif len(description) + 2 <= 50:
+        return description + '作品'
+
+    return description
+
+def shorten_description(description, max_length):
+    """智能缩短过长的描述"""
+    if len(description) <= max_length:
+        return description
+
+    # 优先去除不必要的修饰词和连接词
+    words_to_remove = [
+        '非常', '十分', '特别', '极其', '相当', '比较', '较为',
+        '显得', '看起来', '看上去', '仿佛', '好像', '似乎',
+        '在...下', '在...中', '在...里', '的时候', '的瞬间'
+    ]
+
+    shortened = description
+    for word in words_to_remove:
+        shortened = shortened.replace(word, '')
+
+    # 如果还是太长，智能截取
+    if len(shortened) > max_length:
+        # 尽量在标点符号处截断
+        punctuation = ['，', '。', '、', '；', '：']
+        for i in range(max_length - 1, max_length // 2, -1):
+            if shortened[i] in punctuation:
+                return shortened[:i]
+
+        # 如果没有找到合适的标点，直接截取
+        return shortened[:max_length]
+
+    return shortened
+
 @app.route('/export_excel', methods=['POST'])
 def export_excel():
     """导出批量处理结果为图虫平台Excel格式"""
     try:
         data = request.get_json()
         results = data.get('results', [])
-        
+
         if not results:
             return jsonify({'error': '没有数据可导出'}), 400
-        
+
         # 图虫平台Excel格式
         excel_data = []
-        
+
         for result in results:
             filename = result.get('filename', '')
             analysis = result.get('analysis', {})
-            
-            # 处理analysis可能是字符串的情况
+
+            # 初始化默认值
+            description = '精美图片'
+            keywords_str = '摄影,图片,素材,创意,设计'
+            category = '其他'
+
+            # 处理analysis数据
             if isinstance(analysis, str):
-                # 如果analysis是字符串，尝试解析为JSON
+                # 如果analysis是格式化后的字符串，需要解析
                 try:
-                    import json
-                    analysis = json.loads(analysis)
-                except:
-                    # 如果解析失败，创建默认结构
-                    analysis = {
-                        'description': analysis[:100] if analysis else '精美图片',
-                        'keywords': []
-                    }
-            
-            # 从AI分析结果中提取信息
-            description = analysis.get('description', '')
-            keywords = analysis.get('keywords', [])
-            
-            # 如果keywords是字符串，转换为列表
-            if isinstance(keywords, str):
-                keywords = [k.strip() for k in keywords.split(',') if k.strip()]
-            
-            # 限制描述长度（5-50字）
-            if len(description) > 50:
-                description = description[:47] + '...'
-            elif len(description) < 5:
-                description = description + '，精美图片'
-            
+                    # 尝试从格式化字符串中提取信息
+                    lines = analysis.split('\n')
+                    for line in lines:
+                        if '图片说明：' in line:
+                            description = line.replace('图片说明：', '').strip()
+                        elif '图片关键字：' in line:
+                            keywords_str = line.replace('图片关键字：', '').strip()
+                        elif '图片分类：' in line:
+                            category = line.replace('图片分类：', '').strip()
+                except Exception as e:
+                    print(f"解析格式化字符串失败: {e}")
+            elif isinstance(analysis, dict):
+                # 如果analysis是字典，从原始数据中提取
+                # 优先使用格式化后的description
+                description = (
+                    analysis.get('description') or
+                    analysis.get('detailed_description') or
+                    analysis.get('main_subject', '精美图片')
+                )
+
+                # 处理关键词
+                keywords = analysis.get('keywords', [])
+                if not keywords:
+                    keywords = analysis.get('keywords_cn', [])
+                if isinstance(keywords, str):
+                    keywords = [k.strip() for k in keywords.split(',') if k.strip()]
+
+                if keywords:
+                    keywords_str = ','.join(keywords)
+
+                # 处理图片分类
+                category = analysis.get('image_type', '其他')
+
+            # 优化描述长度，确保在5-50字符范围内
+            description = optimize_description_length(description, 5, 50)
+
+            # 验证和调整关键词
+            keywords_list = [k.strip() for k in keywords_str.split(',') if k.strip()]
+
             # 限制关键词数量（5-30个）
-            if len(keywords) > 30:
-                keywords = keywords[:30]
-            elif len(keywords) < 5:
+            if len(keywords_list) > 30:
+                keywords_list = keywords_list[:30]
+            elif len(keywords_list) < 5:
                 # 补充通用关键词
-                default_keywords = ['摄影', '图片', '素材', '创意', '设计']
-                keywords.extend(default_keywords[:5-len(keywords)])
-            
-            keywords_str = ','.join(keywords)
-            
-            # 直接使用AI识别的图片类型作为分类
-            category = analysis.get('image_type', '其他')
-            
+                default_keywords = ['摄影', '图片', '素材', '创意', '设计', '艺术', '视觉', '专业', '高质量', '商业']
+                keywords_list.extend(default_keywords[:5-len(keywords_list)])
+
+            keywords_str = ','.join(keywords_list)
+
             # 确保分类在图虫网允许的分类列表中
             tuchong_categories = [
-                '城市风光', '自然风光', '野生动物', '静物美食', 
-                '动物萌宠', '商务肖像', '生活方式', '室内空间', 
+                '城市风光', '自然风光', '野生动物', '静物美食',
+                '动物萌宠', '商务肖像', '生活方式', '室内空间',
                 '生物医疗', '运动健康', '节日假日', '其他'
             ]
-            
+
+            # 图片分类映射优化
+            category_mapping = {
+                '风景': '自然风光',
+                '景观': '自然风光',
+                '风光': '自然风光',
+                '自然': '自然风光',
+                '山水': '自然风光',
+                '建筑': '城市风光',
+                '城市': '城市风光',
+                '街道': '城市风光',
+                '人物': '商务肖像',
+                '肖像': '商务肖像',
+                '食物': '静物美食',
+                '美食': '静物美食',
+                '动物': '动物萌宠',
+                '宠物': '动物萌宠',
+                '生活': '生活方式',
+                '室内': '室内空间',
+                '医疗': '生物医疗',
+                '运动': '运动健康',
+                '健康': '运动健康',
+                '节日': '节日假日'
+            }
+
+            # 先尝试直接匹配
             if category not in tuchong_categories:
-                category = '其他'
-            
+                # 尝试映射匹配
+                mapped_category = None
+                for key, value in category_mapping.items():
+                    if key in category:
+                        mapped_category = value
+                        break
+
+                category = mapped_category if mapped_category else '其他'
+
+            # 使用正确的列名（与模板一致）
             excel_row = {
                 '图片文件名': filename,
-                '是否独家[选项]': '否',  # 默认否
+                '是否独家(选项)': '否',  # 默认否
                 '图片说明': description,
                 '图片关键字': keywords_str,
                 '图片分类': category,
-                '图片用途[选项]': '商业广告类'  # 设置为商业广告类
+                '图片用途(选项)': '商业广告类'  # 设置为商业广告类
             }
-            
+
             excel_data.append(excel_row)
-        
+
         # 创建DataFrame
         df = pd.DataFrame(excel_data)
-        
+
         # 创建临时文件
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'图虫平台批量导入_{timestamp}.xlsx'
-        
+
         # 使用临时目录
         temp_dir = tempfile.gettempdir()
         filepath = os.path.join(temp_dir, filename)
-        
+
         # 保存Excel文件
         with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='图片信息', index=False)
-            
+            df.to_excel(writer, sheet_name='工作表1', index=False)
+
             # 获取工作表并设置列宽
-            worksheet = writer.sheets['图片信息']
+            worksheet = writer.sheets['工作表1']
             worksheet.column_dimensions['A'].width = 25  # 图片文件名
             worksheet.column_dimensions['B'].width = 15  # 是否独家
             worksheet.column_dimensions['C'].width = 50  # 图片说明
             worksheet.column_dimensions['D'].width = 60  # 图片关键字
             worksheet.column_dimensions['E'].width = 15  # 图片分类
             worksheet.column_dimensions['F'].width = 20  # 图片用途
-        
+
         # 返回文件
         return send_file(
             filepath,
@@ -398,7 +580,7 @@ def export_excel():
             download_name=filename,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        
+
     except Exception as e:
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
