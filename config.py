@@ -66,11 +66,11 @@ SUPPORTED_MODELS = {
 
 # 图片供稿平台关键词模板
 PLATFORM_TEMPLATES = {
-    'shutterstock': {
-        'max_keywords': 50,
-        'language': 'en',
-        'style': 'commercial',
-        'prompt_suffix': 'Generate commercial stock photo keywords in English.'
+    'general': {
+        'max_keywords': 30,
+        'language': 'zh',
+        'style': 'general',
+        'prompt_suffix': '生成通用的图片分析关键词。'
     },
     'tuchong': {
         'max_keywords': 30,
@@ -83,16 +83,21 @@ PLATFORM_TEMPLATES = {
             '生物医疗', '运动健康', '节日假日', '其他'
         ]
     },
-    'getty': {
-        'max_keywords': 40,
-        'language': 'en',
-        'style': 'editorial',
-        'prompt_suffix': 'Generate editorial and news-worthy keywords in English.'
-    },
     'adobe_stock': {
         'max_keywords': 45,
         'language': 'en',
         'style': 'versatile',
         'prompt_suffix': 'Generate versatile stock photo keywords for Adobe Stock.'
+    },
+    'vcg': {
+        'max_keywords': 50,
+        'language': 'zh',
+        'style': 'commercial',
+        'prompt_suffix': '生成适合视觉中国的商业摄影关键词，注重商业价值和专业性。',
+        'categories': [
+            '商业金融', '科技创新', '医疗健康', '教育培训',
+            '旅游休闲', '生活方式', '工业制造', '建筑空间',
+            '自然风光', '人物肖像', '艺术创意', '其他'
+        ]
     }
 }

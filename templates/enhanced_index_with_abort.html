@@ -207,6 +207,8 @@
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+            white-space: pre-wrap;
+            text-align: left;
         }
 
         .status.loading {
@@ -440,11 +442,8 @@
                     <div class="btn-group" id="platformButtons">
                         <button class="platform-btn active" data-platform="general">通用</button>
                         <button class="platform-btn" data-platform="tuchong">图虫网</button>
-                        <button class="platform-btn" data-platform="shutterstock">Shutterstock</button>
-                        <button class="platform-btn" data-platform="getty">Getty Images</button>
-                        <button class="platform-btn" data-platform="adobe">Adobe Stock</button>
-                        <button class="platform-btn" data-platform="unsplash">Unsplash</button>
-                        <button class="platform-btn" data-platform="pexels">Pexels</button>
+                        <button class="platform-btn" data-platform="adobe_stock">Adobe Stock</button>
+                        <button class="platform-btn" data-platform="vcg">视觉中国</button>
                     </div>
                 </div>
 
@@ -781,16 +780,35 @@
 
                 if (data.success) {
                     const langText = currentLanguage === 'zh' ? '分析完成！平台：' : 'Analysis completed! Platform: ';
-                    showStatus(`${langText}${getPlatformName(currentPlatform)}`, 'success');
-                    
+                    const timeText = currentLanguage === 'zh' ? '，耗时：' : ', Time: ';
+                    const processingTime = data.processing_time || '未知';
+                    showStatus(`${langText}${getPlatformName(currentPlatform)}${timeText}${processingTime}`, 'success');
+
                     // 确保analysis是字符串
                     let analysisText = data.analysis;
                     if (typeof analysisText === 'object') {
                         analysisText = JSON.stringify(analysisText, null, 2);
                     }
-                    analysisContent.textContent = analysisText;
+
+                    // 在分析结果前添加耗时信息
+                    const timeInfoText = currentLanguage === 'zh' ?
+                        `📊 处理耗时: ${processingTime}\n平台: ${getPlatformName(currentPlatform)}\n模型: ${data.model || currentModel}\n\n` :
+                        `📊 Processing Time: ${processingTime}\nPlatform: ${getPlatformName(currentPlatform)}\nModel: ${data.model || currentModel}\n\n`;
+
+                    analysisContent.textContent = timeInfoText + analysisText;
                 } else {
-                    showStatus(data.error || '上传失败', 'error');
+                    // 处理错误响应
+                    let errorMessage = data.error || '上传失败';
+
+                    // 如果有建议，添加到错误信息中
+                    if (data.suggestions && Array.isArray(data.suggestions)) {
+                        errorMessage += '\n\n建议解决方案：';
+                        data.suggestions.forEach((suggestion, index) => {
+                            errorMessage += `\n${index + 1}. ${suggestion}`;
+                        });
+                    }
+
+                    showStatus(errorMessage, 'error');
                     results.style.display = 'none';
                 }
             } catch (error) {
@@ -909,37 +927,58 @@
 
                     if (data.success) {
                         successCount++;
-                        
+
                         // 确保analysis是字符串
                         let analysisText = data.analysis;
                         if (typeof analysisText === 'object') {
                             analysisText = JSON.stringify(analysisText, null, 2);
                         }
-                        
+
+                        // 更新状态显示当前图片完成和耗时
+                        const completedText = currentLanguage === 'zh' ?
+                            `完成第 ${i + 1}/${validFiles.length} 张图片 (${data.processing_time || '未知'})` :
+                            `Completed image ${i + 1}/${validFiles.length} (${data.processing_time || 'Unknown'})`;
+                        showStatus(completedText, 'success');
+
                         // 保存到批量结果数组
                         batchResults.push({
                             filename: data.filename,
                             analysis: data.analysis, // 保存原始对象用于导出
+                            processing_time: data.processing_time || '未知',
                             success: true
                         });
-                        
+
+                        // 在分析文本前添加耗时信息
+                        const timeInfoText = currentLanguage === 'zh' ?
+                            `📊 处理耗时: ${data.processing_time || '未知'}\n平台: ${getPlatformName(currentPlatform)}\n模型: ${data.model || currentModel}\n\n` :
+                            `📊 Processing Time: ${data.processing_time || 'Unknown'}\nPlatform: ${getPlatformName(currentPlatform)}\nModel: ${data.model || currentModel}\n\n`;
+
                         const resultElement = createBatchResultElement({
                             filename: data.filename,
-                            analysis: analysisText,
+                            analysis: timeInfoText + analysisText,
+                            processing_time: data.processing_time,
                             success: true
                         }, file);
                         container.appendChild(resultElement);
                     } else {
-                        // 保存失败结果
+                        // 保存失败结果，包含详细的错误信息
+                        let errorText = data.error || '处理失败';
+                        if (data.suggestions && Array.isArray(data.suggestions)) {
+                            errorText += '\n\n建议：';
+                            data.suggestions.forEach((suggestion, index) => {
+                                errorText += `\n${index + 1}. ${suggestion}`;
+                            });
+                        }
+
                         batchResults.push({
                             filename: data.filename,
-                            error: data.error,
+                            error: errorText,
                             success: false
                         });
-                        
+
                         const resultElement = createBatchResultElement({
                             filename: data.filename,
-                            error: data.error,
+                            error: errorText,
                             success: false
                         }, file);
                         container.appendChild(resultElement);
@@ -1054,20 +1093,14 @@
                 'zh': {
                     'general': '通用',
                     'tuchong': '图虫网',
-                    'shutterstock': 'Shutterstock',
-                    'getty': 'Getty Images',
-                    'adobe': 'Adobe Stock',
-                    'unsplash': 'Unsplash',
-                    'pexels': 'Pexels'
+                    'adobe_stock': 'Adobe Stock',
+                    'vcg': '视觉中国'
                 },
                 'en': {
                     'general': 'General',
                     'tuchong': 'Tuchong',
-                    'shutterstock': 'Shutterstock',
-                    'getty': 'Getty Images',
-                    'adobe': 'Adobe Stock',
-                    'unsplash': 'Unsplash',
-                    'pexels': 'Pexels'
+                    'adobe_stock': 'Adobe Stock',
+                    'vcg': 'Visual China Group'
                 }
             };
             return names[currentLanguage][platform] || platform;

@@ -9,7 +9,7 @@ import os
 import sys
 import json
 from pathlib import Path
-from image_analyzer import ImageAnalyzer
+from unified_analyzer import UnifiedImageAnalyzer as ImageAnalyzer
 from utils import ImageUtils, ResultExporter, ModelManager, setup_logging
 
 def main():
@@ -93,15 +93,20 @@ def main():
             # 分析图片
             analysis_data = analyzer.analyze_image(str(image_file), args.platform)
             formatted_result = analyzer.format_for_platform(analysis_data, args.platform)
-            
+
+            # 获取处理耗时
+            processing_time = analysis_data.get('image_info', {}).get('processing_time', 0)
+            logger.info(f"完成 {image_file.name}，耗时: {processing_time:.2f}秒")
+
             # 获取图片信息
             image_info = ImageUtils.get_image_info(str(image_file))
-            
+
             result = {
                 'filename': image_file.name,
                 'filepath': str(image_file),
                 'image_info': image_info,
                 'analysis': formatted_result,
+                'processing_time': f"{processing_time:.2f}s",
                 'raw_data': analysis_data,
                 'platform': args.platform
             }

@@ -2,7 +2,7 @@ import os
 import json
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
-from image_analyzer import ImageAnalyzer
+from unified_analyzer import UnifiedImageAnalyzer as ImageAnalyzer
 from config import Config, PLATFORM_TEMPLATES, SUPPORTED_MODELS
 import ollama
 import pandas as pd
@@ -73,7 +73,10 @@ def upload_file():
         # 使用指定模型分析图片
         analysis_data = analyzer.analyze_image(filepath, platform, model, language)
         formatted_result = analyzer.format_for_platform(analysis_data, platform, language)
-        
+
+        # 获取处理耗时
+        processing_time = analysis_data.get('image_info', {}).get('processing_time', 0)
+
         return jsonify({
             'success': True,
             'filename': filename,
@@ -81,7 +84,8 @@ def upload_file():
             'raw_data': analysis_data,
             'platform': platform,
             'language': language,
-            'model': model
+            'model': model,
+            'processing_time': f"{processing_time:.2f}s"
         })
     
     return jsonify({'error': '不支持的文件格式'}), 400
@@ -111,7 +115,10 @@ def batch_upload():
             # 使用指定模型分析图片
             analysis_data = analyzer.analyze_image(filepath, platform, model, language)
             formatted_result = analyzer.format_for_platform(analysis_data, platform, language)
-            
+
+            # 获取处理耗时
+            processing_time = analysis_data.get('image_info', {}).get('processing_time', 0)
+
             return jsonify({
                 'success': True,
                 'filename': filename,
@@ -120,7 +127,8 @@ def batch_upload():
                 'total_files': total_files,
                 'platform': platform,
                 'language': language,
-                'model': model
+                'model': model,
+                'processing_time': f"{processing_time:.2f}s"
             })
         else:
             return jsonify({

@@ -59,7 +59,7 @@ def test_image_analyzer():
     """测试图片分析器"""
     print("🔍 测试图片分析器...")
     try:
-        from image_analyzer import ImageAnalyzer
+        from unified_analyzer import UnifiedImageAnalyzer as ImageAnalyzer
         
         # 创建测试图片
         test_dir = Path("test_images")
@@ -74,7 +74,7 @@ def test_image_analyzer():
         analyzer = ImageAnalyzer()
         
         # 测试不同平台
-        platforms = ['general', 'tuchong', 'shutterstock']
+        platforms = ['general', 'tuchong', 'adobe_stock', 'vcg']
         
         for platform in platforms:
             print(f"  测试平台: {platform}")
